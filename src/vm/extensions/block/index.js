@@ -32,7 +32,7 @@ const EXTENSION_ID = 'myBlocks';
  * When it was loaded as a module, 'extensionURL' will be replaced a URL which is retrieved from.
  * @type {string}
  */
-let extensionURL = 'https://iCarrot0605.github.io/xcx-my-blocks/dist/myBlocks.mjs';
+let extensionURL = 'https://yokobond.github.io/xcx-my-blocks/dist/myBlocks.mjs';
 
 /**
  * Scratch 3.0 blocks for example of Xcratch.
@@ -89,13 +89,32 @@ class ExtensionBlocks {
             // Replace 'formatMessage' to a formatter which is used in the runtime.
             formatMessage = runtime.formatMessage;
         }
+
+        this.runtime.on('PROJECT_STOP_ALL', () => {
+            this.resetAudio();
+        });
+        this.resetAudio();
     }
 
-    doIt (args) {
-        const func = new Function(`return (${Cast.toString(args.SCRIPT)})`);
-        const result = func.call(this);
-        console.log(result);
-        return result;
+    resetAudio () {
+        if (this.audioCtx) {
+            this.audioCtx.close();
+        }
+        this.audioCtx = new AudioContext();
+    }
+
+    playTone (args) {
+        const oscillator = this.audioCtx.createOscillator();
+        oscillator.connect(this.audioCtx.destination);
+        oscillator.type = args.TYPE;
+        oscillator.frequency.value = Cast.toNumber(args.FREQ);
+        oscillator.start();
+        return new Promise(resolve => {
+            setTimeout(() => {
+                oscillator.stop();
+                resolve();
+            }, Cast.toNumber(args.DUR) * 1000);
+        });
     }
 
     /**
@@ -111,24 +130,35 @@ class ExtensionBlocks {
             showStatusButton: false,
             blocks: [
                 {
-                    opcode: 'do-it',
-                    blockType: BlockType.REPORTER,
-                    blockAllThreads: false,
+                    opcode: 'playTone',
+                    blockType: BlockType.COMMAND,
                     text: formatMessage({
-                        id: 'myBlocks.doIt',
-                        default: 'do it [SCRIPT]',
-                        description: 'execute javascript for example'
+                        id: 'myBlocks.playTone',
+                        default: 'play [TYPE] wave [FREQ] Hz [DUR] s',
+                        description: 'tone'
                     }),
-                    func: 'doIt',
+                    func: 'playTone',
                     arguments: {
-                        SCRIPT: {
+                        FREQ: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 440
+                        },
+                        TYPE: {
                             type: ArgumentType.STRING,
-                            defaultValue: '3 + 4'
+                            menu: 'waveTypeMenu'
+                        },
+                        DUR: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1
                         }
                     }
                 }
             ],
             menus: {
+                waveTypeMenu: {
+                    acceptReporters: false,
+                    items: ['sine', 'square', 'sawtooth', 'triangle']
+                }
             }
         };
     }
